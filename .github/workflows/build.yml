@@ -1,0 +1,38 @@
+name: Build Amalgamation
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code mit Submodules
+        uses: actions/checkout@v4
+        with:
+          ref: v1.3.10
+          submodules: recursive
+
+      - name: Abhängigkeiten installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake python3 libmbedtls-dev
+
+      - name: open62541 amalgamieren
+        run: |
+          mkdir build && cd build
+          cmake -DUA_ENABLE_AMALGAMATION=ON \
+                -DUA_ENABLE_ENCRYPTION=ON \
+                -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON \
+                -DUA_ENABLE_SUBSCRIPTIONS=ON \
+                -DUA_ENABLE_METHODCALLS=ON \
+                -DUA_ENABLE_HISTORIZING=OFF \
+                ..
+          cmake --build . --target open62541-amalgamation
+
+      - name: Dateien bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: open62541-krypto-core
+          path: |
+            build/open62541.c
+            build/open62541.h
