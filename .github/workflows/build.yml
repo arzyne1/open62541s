@@ -1,4 +1,4 @@
-name: Build Amalgamation
+name: Build and Precompile open62541
 on:
   workflow_dispatch:
 
@@ -12,12 +12,12 @@ jobs:
           ref: v1.3.10
           submodules: recursive
 
-      - name: Abhängigkeiten installieren
+      - name: Build-Tools und ARM-Compiler installieren
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake python3 libmbedtls-dev
+          sudo apt-get install -y cmake python3 libmbedtls-dev gcc-arm-none-eabi
 
-      - name: open62541 amalgamieren
+      - name: Amalgamierung durchführen
         run: |
           mkdir build && cd build
           cmake -DUA_ENABLE_AMALGAMATION=ON \
@@ -29,10 +29,25 @@ jobs:
                 ..
           cmake --build . --target open62541-amalgamation
 
+      - name: Für Cortex-M7 vorkompilieren
+        run: |
+          cd build
+          arm-none-eabi-gcc -c open62541.c \
+            -mcpu=cortex-m7 \
+            -mthumb \
+            -mfpu=fpv5-d16 \
+            -mfloat-abi=hard \
+            -Os \
+            -ffunction-sections \
+            -fdata-sections \
+            -I/usr/include \
+            -o open62541.o
+          arm-none-eabi-ar rcs libopen62541.a open62541.o
+
       - name: Dateien bereitstellen
         uses: actions/upload-artifact@v4
         with:
-          name: open62541-krypto-core
+          name: open62541-cortex-m7-precompiled
           path: |
-            build/open62541.c
             build/open62541.h
+            build/libopen62541.a
